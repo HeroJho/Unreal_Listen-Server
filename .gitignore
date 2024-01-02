@@ -74,3 +74,4 @@ Build/*/**
 */DerivedDataCache/*
 
 # Resources
+/ArenaBattle/ArenaBattle_Cpp/Content/ThirdPerson/*
