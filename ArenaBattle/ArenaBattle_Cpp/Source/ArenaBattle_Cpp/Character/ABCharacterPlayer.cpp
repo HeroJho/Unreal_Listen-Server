@@ -36,6 +36,13 @@ AABCharacterPlayer::AABCharacterPlayer()
 		ChangeControlAction = InputChangeActionControlRef.Object;
 	}
 
+	static ConstructorHelpers::FObjectFinder<UInputAction> InputAttackActionControlRef(
+		TEXT("/Script/EnhancedInput.InputAction'/Game/ArenaBattle/Input/Actions/IA_Attack.IA_Attack'"));
+	if (nullptr != InputAttackActionControlRef.Object)
+	{
+		AttackAction = InputAttackActionControlRef.Object;
+	}
+
 	static ConstructorHelpers::FObjectFinder<UInputAction> InputActionShoulderMoveRef(
 		TEXT("/Script/EnhancedInput.InputAction'/Game/ArenaBattle/Input/Actions/IA_ShoulderMove.IA_ShoulderMove'"));
 	if (nullptr != InputActionShoulderMoveRef.Object)
@@ -75,6 +82,7 @@ void AABCharacterPlayer::SetupPlayerInputComponent(class UInputComponent* Player
 
 	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Triggered, this, &ACharacter::Jump);
 	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+	EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this, &AABCharacterPlayer::Attack);
 	EnhancedInputComponent->BindAction(ChangeControlAction, ETriggerEvent::Triggered, this, &AABCharacterPlayer::ChangeCharacterControl);
 	EnhancedInputComponent->BindAction(ShoulderMoveAction, ETriggerEvent::Triggered, this, &AABCharacterPlayer::ShoulderMove);
 	EnhancedInputComponent->BindAction(ShoulderLookAction, ETriggerEvent::Triggered, this, &AABCharacterPlayer::ShoulderLook);
@@ -169,4 +177,9 @@ void AABCharacterPlayer::QuaterMove(const FInputActionValue& Value)
 	FVector MoveDirection = FVector(MovementVector.X, MovementVector.Y, 0.0f);
 	GetController()->SetControlRotation(FRotationMatrix::MakeFromX(MoveDirection).Rotator());
 	AddMovementInput(MoveDirection, MovementVectorSize);
+}
+
+void AABCharacterPlayer::Attack()
+{
+	ProcessComboCommand();
 }

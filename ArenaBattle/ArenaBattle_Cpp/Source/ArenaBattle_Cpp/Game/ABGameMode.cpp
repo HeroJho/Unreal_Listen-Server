@@ -16,7 +16,7 @@ AABGameMode::AABGameMode()
 
 	// 클래스 정보는 _C 붙이기
 	static ConstructorHelpers::FClassFinder<APawn> ThirdPersonClassRef(
-		TEXT("/Script/ArenaBattle_Cpp.ABCharacterPlayer"));
+		TEXT("/Game/ArenaBattle/Blueprint/BP_AB_CharacterPlayer.BP_AB_CharacterPlayer_C"));
 	if (ThirdPersonClassRef.Class)
 	{
 		DefaultPawnClass = ThirdPersonClassRef.Class;

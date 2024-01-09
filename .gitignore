@@ -73,6 +73,7 @@ Build/*/**
 # Cache files for the editor to use
 */DerivedDataCache/*
 
+
 # Resources
 /ArenaBattle/ArenaBattle_Cpp/Content/ThirdPerson/*
 /ArenaBattle/ArenaBattle_Cpp/Content/InfinityBladeWarriors/*
