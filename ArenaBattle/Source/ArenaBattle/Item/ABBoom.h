@@ -25,6 +25,10 @@ public:
 
 public:
 	void Boom();
+	
+private:
+	UFUNCTION()
+	void OnEffectFinished(UParticleSystemComponent* ParticleSystem);
 
 	// Components
 protected:
@@ -34,9 +38,12 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = Boom)
 	TObjectPtr<class UStaticMeshComponent> Mesh;
 
+	UPROPERTY(VisibleAnywhere, Category = Effect)
+	TObjectPtr<class UParticleSystemComponent> Effect;
+
 	// Propertys
 protected:
-	UPROPERTY(VisibleAnywhere, Category = Boom)
+	UPROPERTY(EditAnywhere, Category = Boom)
 	float BoomTime;
 
 };

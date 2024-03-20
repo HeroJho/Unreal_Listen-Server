@@ -4,6 +4,7 @@
 #include "Item/ABBoom.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SphereComponent.h"
+#include "Particles/ParticleSystemComponent.h"
 
 // Sets default values
 AABBoom::AABBoom()
@@ -14,15 +15,13 @@ AABBoom::AABBoom()
 
 	Collision = CreateDefaultSubobject<USphereComponent>(TEXT("Collision"));
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
+	Effect = CreateDefaultSubobject<UParticleSystemComponent>(TEXT("Effect"));
 
 	RootComponent = Collision;
 	Mesh->SetupAttachment(RootComponent);
+	Effect->SetupAttachment(RootComponent);
 
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> BoxMeshRef(TEXT("/Script/Engine.StaticMesh'/Game/ArenaBattle/Environment/Props/SM_Env_Breakables_Box1.SM_Env_Breakables_Box1'"));
-	if (BoxMeshRef.Object)
-	{
-		Mesh->SetStaticMesh(BoxMeshRef.Object);
-	}
+	Effect->bAutoActivate = false;
 
 	Collision->SetCollisionProfileName(TEXT("PhysicsActor"));
 
@@ -34,10 +33,12 @@ void AABBoom::BeginPlay()
 	Super::BeginPlay();
 	Collision->SetSimulatePhysics(true);
 
-	BoomTime = 5.f;
+	if (HasAuthority())
+	{
+		FTimerHandle Handle;
+		GetWorld()->GetTimerManager().SetTimer(Handle, this, &AABBoom::Boom, BoomTime, false);
+	}
 
-	FTimerHandle Handle;
-	GetWorld()->GetTimerManager().SetTimer(Handle, this, &AABBoom::Boom, BoomTime, false);
 }
 
 // Called every frame
@@ -48,6 +49,16 @@ void AABBoom::Tick(float DeltaTime)
 }
 
 void AABBoom::Boom()
+{
+	Effect->Activate(true);
+	Effect->OnSystemFinished.AddDynamic(this, &AABBoom::OnEffectFinished);
+
+	Mesh->SetHiddenInGame(true);
+	SetActorEnableCollision(false);
+
+}
+
+void AABBoom::OnEffectFinished(UParticleSystemComponent* ParticleSystem)
 {
 	Destroy();
 }
