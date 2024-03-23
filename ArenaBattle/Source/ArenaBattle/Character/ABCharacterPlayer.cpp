@@ -300,8 +300,11 @@ void AABCharacterPlayer::PlayAttackAnimation()
 	AnimInstance->Montage_Play(ComboActionMontage);
 }
 
+// 애니메이션 노티파이 들어오는 곳
 void AABCharacterPlayer::AttackHitCheck()
 {
+	// 내가 조종중인 캐릭터냐
+	// 다른 캐릭터들도 이 로직이 실행될 텐데, 내껏만 검사하면 됨.
 	if (IsLocallyControlled())
 	{
 		AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"));
@@ -319,7 +322,7 @@ void AABCharacterPlayer::AttackHitCheck()
 		bool HitDetected = GetWorld()->SweepSingleByChannel(OutHitResult, Start, End, FQuat::Identity, CCHANNEL_ABACTION, FCollisionShape::MakeSphere(AttackRadius), Params);
 
 		float HitCheckTime = GetWorld()->GetGameState()->GetServerWorldTimeSeconds();
-		if (!HasAuthority())
+		if (!HasAuthority()) // 클라 로직
 		{
 			if (HitDetected)
 			{
@@ -330,7 +333,7 @@ void AABCharacterPlayer::AttackHitCheck()
 				ServerRPCNotifyMiss(Start, End, Forward, HitCheckTime);
 			}
 		}
-		else
+		else // 서버 로직
 		{
 			FColor DebugColor = HitDetected ? FColor::Green : FColor::Red;
 			DrawDebugAttackRange(DebugColor, Start, End, Forward);
@@ -393,12 +396,13 @@ void AABCharacterPlayer::ServerRPCAttack_Implementation(float AttackStartTime)
 	LastAttackStartTime = AttackStartTime;
 	PlayAttackAnimation();
 
+	// 서버 로직
 	//MulticastRPCAttack();
 	for (APlayerController* PlayerController : TActorRange<APlayerController>(GetWorld()))
 	{
-		if (PlayerController && GetController() != PlayerController)
+		if (PlayerController && GetController() != PlayerController) // 이 캐릭터 컨트롤러가 아니고
 		{
-			if(!PlayerController->IsLocalController())
+			if(!PlayerController->IsLocalController()) // 서버 컨트롤러가 아닐 경우
 			{
 				AABCharacterPlayer* OtherPlayer = Cast<AABCharacterPlayer>(PlayerController->GetPawn());
 				if (OtherPlayer)

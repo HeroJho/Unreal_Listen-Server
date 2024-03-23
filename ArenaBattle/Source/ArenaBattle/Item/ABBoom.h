@@ -23,8 +23,9 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-public:
-	void Boom();
+private:
+	UFUNCTION(NetMulticast, Unreliable)
+	void NetMulticastRPC_Boom();
 	
 private:
 	UFUNCTION()
@@ -45,5 +46,6 @@ protected:
 protected:
 	UPROPERTY(EditAnywhere, Category = Boom)
 	float BoomTime;
-
+	UPROPERTY(EditAnywhere, Category = Boom)
+	float AttackRadius;
 };
