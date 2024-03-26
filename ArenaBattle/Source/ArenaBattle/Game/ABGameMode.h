@@ -35,4 +35,13 @@ protected:
 
 protected:
 	TArray<TObjectPtr<class APlayerStart>> PlayerStartArray;
+
+public:
+	FORCEINLINE class UABSkillManager* GetSkillManager();
+
+	// Manager
+private:
+	UPROPERTY()
+	TObjectPtr<class UABSkillManager> SkillManager;
+
 };

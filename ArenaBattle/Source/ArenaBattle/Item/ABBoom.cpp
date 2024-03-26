@@ -7,25 +7,27 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/SphereComponent.h"
 #include "Particles/ParticleSystemComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "Net/UnrealNetwork.h"
 
 
 // Sets default values
 AABBoom::AABBoom()
-	:BoomTime(0.f) 
-	,AttackRadius(0.f)
+	:BoomTime(0.f)
+	, AttackRadius(0.f)
+	, BoomLineDis(0)
+	, BoomLineCnt(0)
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 
 	Collision = CreateDefaultSubobject<USphereComponent>(TEXT("Collision"));
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
-	Effect = CreateDefaultSubobject<UParticleSystemComponent>(TEXT("Effect"));
 
 	RootComponent = Collision;
 	Mesh->SetupAttachment(RootComponent);
-	Effect->SetupAttachment(RootComponent);
 
-	Effect->bAutoActivate = false;
+	Mesh->SetCollisionProfileName(TEXT("NoCollision"));
 
 	Collision->SetCollisionProfileName(TEXT("PhysicsActor"));
 
@@ -37,6 +39,9 @@ void AABBoom::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	BoomTime = 5.f;
+	AttackRadius = 200.f;
+
 	if (HasAuthority())
 	{
 		FTimerHandle Handle;
@@ -53,21 +58,95 @@ void AABBoom::Tick(float DeltaTime)
 
 }
 
+void AABBoom::SetProperty(TWeakObjectPtr<AActor> _OwnerMadeMe, int _BoomLineDis)
+{
+	OwnerMadeMe = _OwnerMadeMe;
+	BoomLineDis = _BoomLineDis;
+}
+
 
 void AABBoom::NetMulticastRPC_Boom_Implementation()
 {
-	Effect->Activate(true);
-	Effect->OnSystemFinished.AddDynamic(this, &AABBoom::OnEffectFinished);
-
 	Mesh->SetHiddenInGame(true);
 	SetActorEnableCollision(false);
 
 	// 서버에서만 체크
+
+	const float InRate = 0.1f;
+	GetWorld()->GetTimerManager().SetTimer(LineBoomTimerHandle, this, &AABBoom::BoomLine, InRate, true, 0.f);
+
+}
+
+
+void AABBoom::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AABBoom, BoomLineDis);
+
+}
+
+void AABBoom::BoomLine()
+{
+	if (BoomLineCnt > BoomLineDis)
+	{
+		GetWorld()->GetTimerManager().ClearTimer(LineBoomTimerHandle);
+		Destroy();
+		return;
+	}
+
+	if (BoomLineCnt == 0)
+	{
+		FirstLocation = GetActorLocation();
+		Boom(FirstLocation);
+
+		++BoomLineCnt;
+
+		return;
+	}
+
+	const float LineDis = 250.f;
+
+	FVector BoomLocation;
+	FVector Dir;
+
+	// 좌
+	Dir = { 1.f, 0.f, 0.f };
+	BoomLocation = FirstLocation + Dir * LineDis * float(BoomLineCnt);
+	Boom(BoomLocation);
+
+	// 우
+	Dir = { -1.f, 0.f, 0.f };
+	BoomLocation = FirstLocation + Dir * LineDis * float(BoomLineCnt);
+	Boom(BoomLocation);
+
+	// 아
+	Dir = { 0.f, 1.f, 0.f };
+	BoomLocation = FirstLocation + Dir * LineDis * float(BoomLineCnt);
+	Boom(BoomLocation);
+
+	// 위
+	Dir = { 0.f, -1.f, 0.f };
+	BoomLocation = FirstLocation + Dir * LineDis * float(BoomLineCnt);
+	Boom(BoomLocation);
+
+	++BoomLineCnt;
+}
+
+void AABBoom::Boom(FVector BoomLocation)
+{
+	// 클라 이팩트
+	BoomEffect(BoomLocation);
+
+	// 서버만 충돌 검사
 	if (HasAuthority())
 	{
-		FCollisionQueryParams Params(SCENE_QUERY_STAT(Attack), false, this);
+		// const AActor* OwnerMe = GetOwnerMadeMe().Get();
+		// FCollisionQueryParams Params(SCENE_QUERY_STAT(Attack), false, OwnerMe);
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(Attack), false, nullptr);
+
 		TArray<FOverlapResult> HitActors;
-		bool HitDetected = GetWorld()->OverlapMultiByChannel(HitActors, GetActorLocation(), FQuat::Identity, CCHANNEL_ABACTION, FCollisionShape::MakeSphere(AttackRadius), Params);
+		bool HitDetected = GetWorld()->OverlapMultiByChannel(HitActors, BoomLocation, FQuat::Identity, CCHANNEL_ABACTION, FCollisionShape::MakeSphere(AttackRadius), Params);
 
 		if (HitDetected)
 		{
@@ -81,15 +160,14 @@ void AABBoom::NetMulticastRPC_Boom_Implementation()
 		}
 
 #if ENABLE_DRAW_DEBUG
-		DrawDebugSphere(GetWorld(), GetActorLocation(), AttackRadius, 12, FColor::Cyan, false, 5.0f);
+		DrawDebugSphere(GetWorld(), BoomLocation, AttackRadius, 12, FColor::Cyan, false, 5.0f);
 #endif
-
 	}
-	
+
 }
 
-void AABBoom::OnEffectFinished(UParticleSystemComponent* ParticleSystem)
+void AABBoom::BoomEffect(FVector BoomLocation)
 {
-	Destroy();
+	UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), Particle, BoomLocation);
 }
 

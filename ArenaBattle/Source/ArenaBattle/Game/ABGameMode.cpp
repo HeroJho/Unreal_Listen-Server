@@ -9,6 +9,8 @@
 #include "GameFramework/PlayerStart.h"
 #include "EngineUtils.h"
 #include "ABPlayerState.h"
+#include "ArenaBattle/Manager/ABSkillManager.h"
+
 
 AABGameMode::AABGameMode()
 {
@@ -26,6 +28,9 @@ AABGameMode::AABGameMode()
 
 	GameStateClass = AABGameState::StaticClass();
 	PlayerStateClass = AABPlayerState::StaticClass();
+
+	
+	
 }
 
 FTransform AABGameMode::GetRandomStartTransform() const
@@ -111,6 +116,10 @@ void AABGameMode::StartPlay()
 {
 	Super::StartPlay();
 
+	// Init Manager
+	SkillManager = NewObject<UABSkillManager>(this, FName("SkillManager"));
+
+
 	for (APlayerStart* PlayerStart : TActorRange<APlayerStart>(GetWorld()))
 	{
 		PlayerStartArray.Add(PlayerStart);
@@ -155,4 +164,9 @@ void AABGameMode::FinishMatch()
 		EndMatch();
 		ABGameState->RemainingTime = ABGameState->ShowResultWaitingTime;
 	}
+}
+
+UABSkillManager* AABGameMode::GetSkillManager()
+{
+	return SkillManager;
 }

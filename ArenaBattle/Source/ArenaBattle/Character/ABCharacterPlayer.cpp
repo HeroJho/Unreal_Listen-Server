@@ -22,6 +22,8 @@
 #include "ABCharacterMovementComponent.h"
 #include "GameFramework/PlayerState.h"
 #include "Engine/AssetManager.h"
+#include "Manager/ABSkillManager.h"
+#include "Game/ABGameMode.h"
 
 AABCharacterPlayer::AABCharacterPlayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UABCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -279,7 +281,7 @@ void AABCharacterPlayer::Attack()
 
 	if (bCanAttack)
 	{
-		if (!HasAuthority())
+		if (!HasAuthority()) // 서버가 아니면
 		{
 			bCanAttack = false;
 			GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_None);
@@ -305,44 +307,57 @@ void AABCharacterPlayer::AttackHitCheck()
 {
 	// 내가 조종중인 캐릭터냐
 	// 다른 캐릭터들도 이 로직이 실행될 텐데, 내껏만 검사하면 됨.
-	if (IsLocallyControlled())
+
+	if (HasAuthority())
 	{
-		AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"));
-
-		FHitResult OutHitResult;
-		FCollisionQueryParams Params(SCENE_QUERY_STAT(Attack), false, this);
-
-		const float AttackRange = Stat->GetTotalStat().AttackRange;
-		const float AttackRadius = Stat->GetAttackRadius();
-		const float AttackDamage = Stat->GetTotalStat().Attack;
-		const FVector Forward = GetActorForwardVector();
-		const FVector Start = GetActorLocation() + Forward * GetCapsuleComponent()->GetScaledCapsuleRadius();
-		const FVector End = Start + GetActorForwardVector() * AttackRange;
-
-		bool HitDetected = GetWorld()->SweepSingleByChannel(OutHitResult, Start, End, FQuat::Identity, CCHANNEL_ABACTION, FCollisionShape::MakeSphere(AttackRadius), Params);
-
-		float HitCheckTime = GetWorld()->GetGameState()->GetServerWorldTimeSeconds();
-		if (!HasAuthority()) // 클라 로직
+		FHitResult HitResult;
+		const float CheckRange = 10.f;
+		const float CheckRad = 50.f;
+		if (!CheckFront(CheckRange, CheckRad, HitResult))
 		{
-			if (HitDetected)
-			{
-				ServerRPCNotifyHit(OutHitResult, HitCheckTime);
-			}
-			else
-			{
-				ServerRPCNotifyMiss(Start, End, Forward, HitCheckTime);
-			}
+			CreateBomb();
 		}
-		else // 서버 로직
-		{
-			FColor DebugColor = HitDetected ? FColor::Green : FColor::Red;
-			DrawDebugAttackRange(DebugColor, Start, End, Forward);
-			if (HitDetected)
-			{
-				AttackHitConfirm(OutHitResult.GetActor());
-			}
-		}
+		 
 	}
+
+	//if (IsLocallyControlled())
+	//{
+	//	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"));
+
+	//	FHitResult OutHitResult;
+	//	FCollisionQueryParams Params(SCENE_QUERY_STAT(Attack), false, this);
+
+	//	const float AttackRange = Stat->GetTotalStat().AttackRange;
+	//	const float AttackRadius = Stat->GetAttackRadius();
+	//	const float AttackDamage = Stat->GetTotalStat().Attack;
+	//	const FVector Forward = GetActorForwardVector();
+	//	const FVector Start = GetActorLocation() + Forward * GetCapsuleComponent()->GetScaledCapsuleRadius();
+	//	const FVector End = Start + GetActorForwardVector() * AttackRange;
+
+	//	bool HitDetected = GetWorld()->SweepSingleByChannel(OutHitResult, Start, End, FQuat::Identity, CCHANNEL_ABACTION, FCollisionShape::MakeSphere(AttackRadius), Params);
+
+	//	float HitCheckTime = GetWorld()->GetGameState()->GetServerWorldTimeSeconds();
+	//	if (!HasAuthority()) // 클라 로직
+	//	{
+	//		if (HitDetected)
+	//		{
+	//			ServerRPCNotifyHit(OutHitResult, HitCheckTime);
+	//		}
+	//		else
+	//		{
+	//			ServerRPCNotifyMiss(Start, End, Forward, HitCheckTime);
+	//		}
+	//	}
+	//	else // 서버 로직
+	//	{
+	//		FColor DebugColor = HitDetected ? FColor::Green : FColor::Red;
+	//		DrawDebugAttackRange(DebugColor, Start, End, Forward);
+	//		if (HitDetected)
+	//		{
+	//			AttackHitConfirm(OutHitResult.GetActor());
+	//		}
+	//	}
+	//}
 }
 
 void AABCharacterPlayer::AttackHitConfirm(AActor* HitActor)
@@ -370,6 +385,27 @@ void AABCharacterPlayer::DrawDebugAttackRange(const FColor& DrawColor, FVector T
 #endif
 }
 
+bool AABCharacterPlayer::CheckFront(float FrontRange, float Radius, FHitResult& OUT_HitResult)
+{
+	FHitResult OutHitResult;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(Attack), false, this);
+
+	const float AttackRange = Stat->GetTotalStat().AttackRange;
+	const float AttackRadius = Stat->GetAttackRadius();
+	const float AttackDamage = Stat->GetTotalStat().Attack;
+	const FVector Forward = GetActorForwardVector();
+	const FVector Start = GetActorLocation() + Forward * GetCapsuleComponent()->GetScaledCapsuleRadius();
+	const FVector End = Start + GetActorForwardVector() * AttackRange;
+
+	bool HitDetected = GetWorld()->SweepSingleByChannel(OutHitResult, Start, End, FQuat::Identity, CCHANNEL_ABACTION, FCollisionShape::MakeSphere(AttackRadius), Params);
+
+
+	DrawDebugAttackRange(FColor::Green, Start, End, Forward);
+
+	OUT_HitResult = OutHitResult;
+	return HitDetected;
+}
+
 bool AABCharacterPlayer::ServerRPCAttack_Validate(float AttackStartTime)
 {
 	if (LastAttackStartTime == 0.0f)
@@ -382,6 +418,7 @@ bool AABCharacterPlayer::ServerRPCAttack_Validate(float AttackStartTime)
 
 void AABCharacterPlayer::ServerRPCAttack_Implementation(float AttackStartTime)
 {
+	// 서버 로직
 	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"));
 
 	bCanAttack = false;
@@ -396,7 +433,6 @@ void AABCharacterPlayer::ServerRPCAttack_Implementation(float AttackStartTime)
 	LastAttackStartTime = AttackStartTime;
 	PlayAttackAnimation();
 
-	// 서버 로직
 	//MulticastRPCAttack();
 	for (APlayerController* PlayerController : TActorRange<APlayerController>(GetWorld()))
 	{
@@ -412,6 +448,7 @@ void AABCharacterPlayer::ServerRPCAttack_Implementation(float AttackStartTime)
 			}
 		}
 	}
+
 }
 
 void AABCharacterPlayer::ClientRPCPlayAnimation_Implementation(AABCharacterPlayer* CharacterToPlay)
@@ -570,4 +607,41 @@ void AABCharacterPlayer::OnRep_PlayerState()
 	Super::OnRep_PlayerState();
 
 	UpdateMeshFromPlayerState();
+}
+
+
+
+
+void AABCharacterPlayer::CreateBomb()
+{
+
+	if (HasAuthority()) // 서버는 그냥 설치하면 됨
+	{
+		AABGameMode* ABGameMode = GetWorld()->GetAuthGameMode<AABGameMode>();
+		if (ABGameMode)
+		{
+			/*UE_LOG(LogTemp, Log, TEXT("Create Bomb"));*/
+
+			const float PlantDis = 100.f;
+
+			FTransform SpawnTransform = GetActorTransform();
+			FVector Location = GetActorLocation();
+			FVector Look = GetActorForwardVector();
+			Look *= PlantDis;
+			Location += Look;
+			SpawnTransform.SetLocation(Location);
+
+			if (ABGameMode->GetSkillManager())
+			{
+				ABGameMode->GetSkillManager()->CreateBomb(this, SpawnTransform);
+			}
+
+		}
+	}
+	else if(IsLocallyControlled()) // 서버가 아니고 내 컨트롤러 캐릭터면
+	{
+		// 서버에 생성 명령 RPC를 날린다
+
+	}
+
 }

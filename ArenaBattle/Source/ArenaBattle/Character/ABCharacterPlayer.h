@@ -80,6 +80,7 @@ protected:
 	virtual void AttackHitCheck() override;
 	void AttackHitConfirm(AActor* HitActor);
 	void DrawDebugAttackRange(const FColor& DrawColor, FVector TraceStart, FVector TraceEnd, FVector Forward);
+	bool CheckFront(float FrontRange, float Radius, FHitResult& OUT_HitResult);
 
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerRPCAttack(float AttackStartTime);
@@ -134,4 +135,8 @@ protected:
 	void UpdateMeshFromPlayerState();
 
 	virtual void OnRep_PlayerState();
+
+// Skill
+protected:
+	void CreateBomb();
 };

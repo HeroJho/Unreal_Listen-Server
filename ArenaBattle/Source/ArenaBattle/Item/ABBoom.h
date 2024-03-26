@@ -23,13 +23,22 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-private:
-	UFUNCTION(NetMulticast, Unreliable)
+// GetSet
+public:
+	TWeakObjectPtr<AActor> GetOwnerMadeMe() { return OwnerMadeMe; }
+	
+	void SetProperty(TWeakObjectPtr<AActor> _OwnerMadeMe, int _BoomLineDis);
+
+protected:
+	UFUNCTION(NetMulticast, reliable)
 	void NetMulticastRPC_Boom();
 	
-private:
-	UFUNCTION()
-	void OnEffectFinished(UParticleSystemComponent* ParticleSystem);
+protected:
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	void BoomLine();
+	void Boom(FVector BoomLocation);
+	void BoomEffect(FVector BoomLocation);
 
 	// Components
 protected:
@@ -39,13 +48,23 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = Boom)
 	TObjectPtr<class UStaticMeshComponent> Mesh;
 
-	UPROPERTY(VisibleAnywhere, Category = Effect)
-	TObjectPtr<class UParticleSystemComponent> Effect;
-
 	// Propertys
 protected:
+	TWeakObjectPtr<AActor> OwnerMadeMe;
+	
 	UPROPERTY(EditAnywhere, Category = Boom)
 	float BoomTime;
 	UPROPERTY(EditAnywhere, Category = Boom)
 	float AttackRadius;
+	UPROPERTY(EditAnywhere, Category = Boom)
+	TObjectPtr<class UParticleSystem> Particle;
+
+	FTimerHandle LineBoomTimerHandle;
+	
+	UPROPERTY(Replicated)
+	int BoomLineDis;
+	
+	int BoomLineCnt;
+	FVector FirstLocation;
+	
 };
