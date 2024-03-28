@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "ABBoom.generated.h"
 
+
 UCLASS()
 class ARENABATTLE_API AABBoom : public AActor
 {
@@ -30,15 +31,15 @@ public:
 	void SetProperty(TWeakObjectPtr<AActor> _OwnerMadeMe, int _BoomLineDis);
 
 protected:
+	void Boom();
 	UFUNCTION(NetMulticast, reliable)
-	void NetMulticastRPC_Boom();
+	void NetMulticastRPC_BoomEffect(FVector Location, FVector Scale, bool IsMiddle);
 	
 protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	void BoomLine();
-	void Boom(FVector BoomLocation);
-	void BoomEffect(FVector BoomLocation);
+	bool Boom(FVector BoomLocation);
 
 	// Components
 protected:
@@ -58,6 +59,8 @@ protected:
 	float AttackRadius;
 	UPROPERTY(EditAnywhere, Category = Boom)
 	TObjectPtr<class UParticleSystem> Particle;
+	UPROPERTY(EditAnywhere, Category = Boom)
+	TObjectPtr<class UParticleSystem> LineParticle;
 
 	FTimerHandle LineBoomTimerHandle;
 	
@@ -66,5 +69,7 @@ protected:
 	
 	int BoomLineCnt;
 	FVector FirstLocation;
+
+	bool EnableDir[4];
 	
 };

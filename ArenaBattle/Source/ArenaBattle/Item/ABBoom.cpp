@@ -17,6 +17,7 @@ AABBoom::AABBoom()
 	, AttackRadius(0.f)
 	, BoomLineDis(0)
 	, BoomLineCnt(0)
+	, EnableDir{ false }
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
@@ -29,7 +30,7 @@ AABBoom::AABBoom()
 
 	Mesh->SetCollisionProfileName(TEXT("NoCollision"));
 
-	Collision->SetCollisionProfileName(TEXT("PhysicsActor"));
+	// Collision->SetCollisionProfileName(TEXT("PhysicsActor"));
 
 	bReplicates = true;
 }
@@ -38,17 +39,10 @@ AABBoom::AABBoom()
 void AABBoom::BeginPlay()
 {
 	Super::BeginPlay();
-	
-	BoomTime = 5.f;
-	AttackRadius = 200.f;
 
-	if (HasAuthority())
-	{
-		FTimerHandle Handle;
-		Collision->SetSimulatePhysics(true);
-		GetWorld()->GetTimerManager().SetTimer(Handle, this, &AABBoom::NetMulticastRPC_Boom, BoomTime, false);
-	}
-
+	FTimerHandle Handle;
+	Collision->SetSimulatePhysics(true);
+	GetWorld()->GetTimerManager().SetTimer(Handle, this, &AABBoom::Boom, BoomTime, false);
 }
 
 // Called every frame
@@ -65,18 +59,36 @@ void AABBoom::SetProperty(TWeakObjectPtr<AActor> _OwnerMadeMe, int _BoomLineDis)
 }
 
 
-void AABBoom::NetMulticastRPC_Boom_Implementation()
+void AABBoom::Boom()
 {
 	Mesh->SetHiddenInGame(true);
 	SetActorEnableCollision(false);
 
 	// 서버에서만 체크
 
-	const float InRate = 0.1f;
-	GetWorld()->GetTimerManager().SetTimer(LineBoomTimerHandle, this, &AABBoom::BoomLine, InRate, true, 0.f);
-
+	if (HasAuthority())
+	{
+		const float InRate = 0.1f;
+		GetWorld()->GetTimerManager().SetTimer(LineBoomTimerHandle, this, &AABBoom::BoomLine, InRate, true, 0.f);
+	}
 }
 
+void AABBoom::NetMulticastRPC_BoomEffect_Implementation(FVector Location, FVector Scale, bool IsMiddle)
+{
+	FTransform EffectTransform;
+	EffectTransform.SetScale3D(Scale);
+	EffectTransform.SetLocation(Location);
+
+	if (IsMiddle)
+	{
+		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), Particle, EffectTransform);
+	}
+	else
+	{
+		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), LineParticle, EffectTransform);
+	}
+
+}
 
 void AABBoom::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -98,7 +110,9 @@ void AABBoom::BoomLine()
 	if (BoomLineCnt == 0)
 	{
 		FirstLocation = GetActorLocation();
+		NetMulticastRPC_BoomEffect(FirstLocation, FVector(1.f, 1.f, 1.f), true);
 		Boom(FirstLocation);
+
 
 		++BoomLineCnt;
 
@@ -111,63 +125,81 @@ void AABBoom::BoomLine()
 	FVector Dir;
 
 	// 좌
-	Dir = { 1.f, 0.f, 0.f };
-	BoomLocation = FirstLocation + Dir * LineDis * float(BoomLineCnt);
-	Boom(BoomLocation);
-
+	if (EnableDir[0] == false)
+	{
+		Dir = { 1.f, 0.f, 0.f };
+		BoomLocation = FirstLocation + Dir * LineDis * float(BoomLineCnt);
+		if (Boom(BoomLocation))
+			EnableDir[0] = true;
+	}
+	
 	// 우
-	Dir = { -1.f, 0.f, 0.f };
-	BoomLocation = FirstLocation + Dir * LineDis * float(BoomLineCnt);
-	Boom(BoomLocation);
+	if (EnableDir[1] == false)
+	{
+		Dir = { -1.f, 0.f, 0.f };
+		BoomLocation = FirstLocation + Dir * LineDis * float(BoomLineCnt);
+		if (Boom(BoomLocation))
+			EnableDir[1] = true;
+	}
 
 	// 아
-	Dir = { 0.f, 1.f, 0.f };
-	BoomLocation = FirstLocation + Dir * LineDis * float(BoomLineCnt);
-	Boom(BoomLocation);
+	if (EnableDir[2] == false)
+	{
+		Dir = { 0.f, 1.f, 0.f };
+		BoomLocation = FirstLocation + Dir * LineDis * float(BoomLineCnt);
+		if (Boom(BoomLocation))
+			EnableDir[2] = true;
+	}
 
 	// 위
-	Dir = { 0.f, -1.f, 0.f };
-	BoomLocation = FirstLocation + Dir * LineDis * float(BoomLineCnt);
-	Boom(BoomLocation);
+	if (EnableDir[3] == false)
+	{
+		Dir = { 0.f, -1.f, 0.f };
+		BoomLocation = FirstLocation + Dir * LineDis * float(BoomLineCnt);
+		if (Boom(BoomLocation))
+			EnableDir[3] = true;
+	}
 
 	++BoomLineCnt;
 }
 
-void AABBoom::Boom(FVector BoomLocation)
+bool AABBoom::Boom(FVector BoomLocation)
 {
-	// 클라 이팩트
-	BoomEffect(BoomLocation);
+	NetMulticastRPC_BoomEffect(BoomLocation, FVector(2.f, 2.f, 2.f), false);
 
-	// 서버만 충돌 검사
-	if (HasAuthority())
+	bool IsBreakableHit = false;
+
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(Attack), false, nullptr);
+
+	TArray<FOverlapResult> HitActors;
+	bool HitDetected = GetWorld()->OverlapMultiByChannel(HitActors, BoomLocation, FQuat::Identity, CCHANNEL_ABACTION, FCollisionShape::MakeSphere(AttackRadius), Params);
+
+	if (HitDetected)
 	{
-		// const AActor* OwnerMe = GetOwnerMadeMe().Get();
-		// FCollisionQueryParams Params(SCENE_QUERY_STAT(Attack), false, OwnerMe);
-		FCollisionQueryParams Params(SCENE_QUERY_STAT(Attack), false, nullptr);
-
-		TArray<FOverlapResult> HitActors;
-		bool HitDetected = GetWorld()->OverlapMultiByChannel(HitActors, BoomLocation, FQuat::Identity, CCHANNEL_ABACTION, FCollisionShape::MakeSphere(AttackRadius), Params);
-
-		if (HitDetected)
+		for (int32 i = 0; i < HitActors.Num(); ++i)
 		{
-			for (int32 i = 0; i < HitActors.Num(); ++i)
-			{
-				AActor* HitActor = HitActors[i].GetActor();
+			AActor* HitActor = HitActors[i].GetActor();
 
-				FDamageEvent DamageEvent;
-				HitActor->TakeDamage(10, DamageEvent, nullptr, this);
+			for (int32 t = 0; t < HitActor->Tags.Num(); ++t)
+			{
+				if (TEXT("Breakable") == HitActor->Tags[t])
+				{
+					IsBreakableHit = true;
+					break;
+				}
 			}
+				
+
+			FDamageEvent DamageEvent;
+			HitActor->TakeDamage(10, DamageEvent, nullptr, this);
+
 		}
 
-#if ENABLE_DRAW_DEBUG
-		DrawDebugSphere(GetWorld(), BoomLocation, AttackRadius, 12, FColor::Cyan, false, 5.0f);
-#endif
 	}
 
-}
+#if ENABLE_DRAW_DEBUG
+	// DrawDebugSphere(GetWorld(), BoomLocation, AttackRadius, 12, FColor::Cyan, false, 5.0f);
+#endif
 
-void AABBoom::BoomEffect(FVector BoomLocation)
-{
-	UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), Particle, BoomLocation);
+	return IsBreakableHit;
 }
-

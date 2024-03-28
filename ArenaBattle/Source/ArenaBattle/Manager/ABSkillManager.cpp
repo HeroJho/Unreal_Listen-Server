@@ -6,7 +6,7 @@
 
 UABSkillManager::UABSkillManager()
 {
-	static ConstructorHelpers::FClassFinder<AABBoom> BombClassRef(TEXT("/Script/Engine.Blueprint'/Game/ArenaBattle/Blueprint/BP_Boom.BP_Boom_C'"));
+	static ConstructorHelpers::FClassFinder<AABBoom> BombClassRef(TEXT("/Script/Engine.Blueprint'/Game/ArenaBattle/Blueprint/Item/BP_Boom.BP_Boom_C'"));
 	if (BombClassRef.Class)
 	{
 		BombClass = BombClassRef.Class;

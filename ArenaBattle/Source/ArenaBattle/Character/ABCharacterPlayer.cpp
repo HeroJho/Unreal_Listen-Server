@@ -311,8 +311,8 @@ void AABCharacterPlayer::AttackHitCheck()
 	if (HasAuthority())
 	{
 		FHitResult HitResult;
-		const float CheckRange = 10.f;
-		const float CheckRad = 50.f;
+		const float CheckRange = 150.f;
+		const float CheckRad = 80.f;
 		if (!CheckFront(CheckRange, CheckRad, HitResult))
 		{
 			CreateBomb();
@@ -390,17 +390,17 @@ bool AABCharacterPlayer::CheckFront(float FrontRange, float Radius, FHitResult& 
 	FHitResult OutHitResult;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(Attack), false, this);
 
-	const float AttackRange = Stat->GetTotalStat().AttackRange;
-	const float AttackRadius = Stat->GetAttackRadius();
-	const float AttackDamage = Stat->GetTotalStat().Attack;
-	const FVector Forward = GetActorForwardVector();
-	const FVector Start = GetActorLocation() + Forward * GetCapsuleComponent()->GetScaledCapsuleRadius();
-	const FVector End = Start + GetActorForwardVector() * AttackRange;
+	FVector Dir = GetActorForwardVector();
+	FVector CheckLocation = GetActorLocation() + Dir * FrontRange;
 
-	bool HitDetected = GetWorld()->SweepSingleByChannel(OutHitResult, Start, End, FQuat::Identity, CCHANNEL_ABACTION, FCollisionShape::MakeSphere(AttackRadius), Params);
+	TArray<FOverlapResult> HitActors;
+	bool HitDetected = GetWorld()->SweepSingleByChannel(OutHitResult, CheckLocation, CheckLocation, FQuat::Identity, CCHANNEL_ABACTION, FCollisionShape::MakeSphere(Radius), Params);
 
+#if ENABLE_DRAW_DEBUG
 
-	DrawDebugAttackRange(FColor::Green, Start, End, Forward);
+	DrawDebugSphere(GetWorld(), CheckLocation, Radius, 10, FColor::Green, false, 5.f);
+
+#endif
 
 	OUT_HitResult = OutHitResult;
 	return HitDetected;
@@ -622,7 +622,7 @@ void AABCharacterPlayer::CreateBomb()
 		{
 			/*UE_LOG(LogTemp, Log, TEXT("Create Bomb"));*/
 
-			const float PlantDis = 100.f;
+			const float PlantDis = 150.f;
 
 			FTransform SpawnTransform = GetActorTransform();
 			FVector Location = GetActorLocation();
