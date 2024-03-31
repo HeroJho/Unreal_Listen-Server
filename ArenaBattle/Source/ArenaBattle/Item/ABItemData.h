@@ -11,7 +11,8 @@ enum class EItemType : uint8
 {
 	Weapon = 0,
 	Potion,
-	Scroll
+	Scroll,
+	StatChange,
 };
 
 /**
@@ -31,4 +32,6 @@ public:
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Type)
 	EItemType Type;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Mesh)
+	TObjectPtr<class UStaticMesh> Mesh;
 };

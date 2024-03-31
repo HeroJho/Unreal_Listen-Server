@@ -7,6 +7,9 @@
 #include "ABBoom.generated.h"
 
 
+DECLARE_MULTICAST_DELEGATE(FOnEndBoomDelegate);
+
+
 UCLASS()
 class ARENABATTLE_API AABBoom : public AActor
 {
@@ -28,10 +31,12 @@ public:
 public:
 	TWeakObjectPtr<AActor> GetOwnerMadeMe() { return OwnerMadeMe; }
 	
-	void SetProperty(TWeakObjectPtr<AActor> _OwnerMadeMe, int _BoomLineDis);
+	void SetProperty(TWeakObjectPtr<AActor> InOwnerMadeMe, int InBoomLineDis);
 
 protected:
 	void Boom();
+	void EndBoom();
+
 	UFUNCTION(NetMulticast, reliable)
 	void NetMulticastRPC_BoomEffect(FVector Location, FVector Scale, bool IsMiddle);
 	
@@ -71,5 +76,10 @@ protected:
 	FVector FirstLocation;
 
 	bool EnableDir[4];
-	
+
+	//Delegates
+public:
+	FOnEndBoomDelegate OnEndBoomDelegate;
+
+
 };

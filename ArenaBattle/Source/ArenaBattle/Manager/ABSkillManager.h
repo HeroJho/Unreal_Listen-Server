@@ -18,7 +18,7 @@ public:
 	UABSkillManager();
 
 public:
-	void CreateBomb(AActor* OwnerActor, FTransform SpawnTransform);
+	void CreateBomb(AActor* OwnerActor, class UABCharacterStatComponent* Stat, FTransform SpawnTransform, int Power);
 
 private:
 	TSubclassOf<class AABBoom> BombClass;

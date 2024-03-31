@@ -40,7 +40,6 @@ float AABBox::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AC
 {
 	const float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 
-
 	BreakBox();
 
 	return ActualDamage;
@@ -52,6 +51,7 @@ void AABBox::BreakBox()
 	EffectTransform.SetScale3D({ 2.f, 2.f, 2.f });
 	EffectTransform.SetLocation(GetActorLocation());
 	UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), BreakParticle, EffectTransform);
+
 	Destroy();
 }
 

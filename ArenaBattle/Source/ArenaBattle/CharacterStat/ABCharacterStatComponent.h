@@ -43,6 +43,15 @@ public:
 	FORCEINLINE float GetAttackRadius() const { return AttackRadius; }
 	float ApplyDamage(float InDamage);
 
+	FORCEINLINE int GetBombPower() { return BombPower; }
+	FORCEINLINE void SetBombPower(int InBombPower);
+
+	FORCEINLINE int GetMaxBombCnt() { return MaxBombCnt; }
+	FORCEINLINE void SetMaxBombCnt(int InMaxBombCnt);
+	bool CheckCanBomb();
+	FORCEINLINE void IncreaseBombCnt();
+	FORCEINLINE void DecreaseBombCnt();
+
 protected:
 	void SetHp(float NewHp);
 
@@ -64,10 +73,17 @@ protected:
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_ModifierStat, VisibleInstanceOnly, Category = Stat, Meta = (AllowPrivateAccess = "true"))
 	FABCharacterStat ModifierStat;
 
+	UPROPERTY(ReplicatedUsing = OnRep_BombPower, EditAnywhere, Category = Stat)
+	int BombPower;
+	int MaxBombPower;
+
+	int MaxBombCnt;
+	int BombCnt;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void ReadyForReplication() override;
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override; 
 	void SetNewMaxHp(const FABCharacterStat& InBaseStat, const FABCharacterStat& InModifierStat);
 
 	UFUNCTION()
@@ -81,6 +97,9 @@ protected:
 
 	UFUNCTION()
 	void OnRep_ModifierStat();
+
+	UFUNCTION()
+	void OnRep_BombPower();
 
 public:
 	void ResetStat();

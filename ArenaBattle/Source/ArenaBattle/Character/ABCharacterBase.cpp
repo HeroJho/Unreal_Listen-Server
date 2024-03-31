@@ -105,6 +105,7 @@ AABCharacterBase::AABCharacterBase(const FObjectInitializer& ObjectInitializer)
 	TakeItemActions.Add(FTakeItemDelegateWrapper(FOnTakeItemDelegate::CreateUObject(this, &AABCharacterBase::EquipWeapon)));
 	TakeItemActions.Add(FTakeItemDelegateWrapper(FOnTakeItemDelegate::CreateUObject(this, &AABCharacterBase::DrinkPotion)));
 	TakeItemActions.Add(FTakeItemDelegateWrapper(FOnTakeItemDelegate::CreateUObject(this, &AABCharacterBase::ReadScroll)));
+	TakeItemActions.Add(FTakeItemDelegateWrapper(FOnTakeItemDelegate::CreateUObject(this, &AABCharacterBase::ChangeStat)));
 
 	// Weapon Component
 	Weapon = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Weapon"));
@@ -275,6 +276,9 @@ void AABCharacterBase::SetupCharacterWidget(UABUserWidget* InUserWidget)
 	}
 }
 
+
+
+
 void AABCharacterBase::TakeItem(UABItemData* InItemData)
 {
 	if (InItemData)
@@ -327,6 +331,38 @@ void AABCharacterBase::ReadScroll(UABItemData* InItemData)
 		}
 	}
 }
+
+void AABCharacterBase::ChangeStat(UABItemData* InItemData)
+{
+	if (HasAuthority())
+	{
+		UABStatChangeItemData* StatChangeItemData = Cast<UABStatChangeItemData>(InItemData);
+		if (StatChangeItemData)
+		{
+			if (StatChangeItemData->BombPower != 0)
+			{
+				const int BombPower = Stat->GetBombPower();
+				Stat->SetBombPower(BombPower + StatChangeItemData->BombPower);
+			}
+			
+			if (StatChangeItemData->MoveSpeed > 0.1f)
+			{
+				GetCharacterMovement()->MaxWalkSpeed += StatChangeItemData->MoveSpeed;
+			}
+			
+			if (StatChangeItemData->BombCnt != 0)
+			{
+				const int MaxBombCnt = Stat->GetMaxBombCnt();
+				Stat->SetMaxBombCnt(MaxBombCnt + StatChangeItemData->BombCnt);
+			}
+
+
+		}
+	}
+}
+
+
+
 
 int32 AABCharacterBase::GetLevel()
 {

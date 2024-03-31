@@ -90,6 +90,8 @@ void AABCharacterPlayer::BeginPlay()
 	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"));
 	Super::BeginPlay();
 
+	AttackTime = 0.5f;
+
 	APlayerController* PlayerController = Cast<APlayerController>(GetController());
 	if (PlayerController)
 	{
@@ -618,7 +620,7 @@ void AABCharacterPlayer::CreateBomb()
 	if (HasAuthority()) // 서버는 그냥 설치하면 됨
 	{
 		AABGameMode* ABGameMode = GetWorld()->GetAuthGameMode<AABGameMode>();
-		if (ABGameMode)
+		if (ABGameMode && Stat->CheckCanBomb())
 		{
 			/*UE_LOG(LogTemp, Log, TEXT("Create Bomb"));*/
 
@@ -633,15 +635,11 @@ void AABCharacterPlayer::CreateBomb()
 
 			if (ABGameMode->GetSkillManager())
 			{
-				ABGameMode->GetSkillManager()->CreateBomb(this, SpawnTransform);
+				const int BombPower = Stat->GetBombPower();
+				ABGameMode->GetSkillManager()->CreateBomb(this, Stat, SpawnTransform, BombPower);
 			}
 
 		}
-	}
-	else if(IsLocallyControlled()) // 서버가 아니고 내 컨트롤러 캐릭터면
-	{
-		// 서버에 생성 명령 RPC를 날린다
-
 	}
 
 }

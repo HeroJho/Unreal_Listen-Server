@@ -11,6 +11,10 @@ UABCharacterStatComponent::UABCharacterStatComponent()
 {
 	CurrentLevel = 1;
 	AttackRadius = 50.0f;
+	MaxBombPower = 10;
+
+	MaxBombCnt = 1;
+	BombCnt = 0;
 
 	bWantsInitializeComponent = true;
 }
@@ -48,6 +52,34 @@ float UABCharacterStatComponent::ApplyDamage(float InDamage)
 	return ActualDamage;
 }
 
+void UABCharacterStatComponent::SetBombPower(int InBombPower)
+{
+	BombPower = FMath::Clamp(InBombPower, 0, MaxBombPower);
+}
+
+void UABCharacterStatComponent::SetMaxBombCnt(int InMaxBombCnt)
+{
+	MaxBombCnt = InMaxBombCnt;
+}
+
+bool UABCharacterStatComponent::CheckCanBomb()
+{
+	if (BombCnt >= MaxBombCnt)
+		return false;
+
+	return true;
+}
+
+void UABCharacterStatComponent::IncreaseBombCnt()
+{
+	BombCnt = FMath::Clamp(BombCnt + 1, 0, MaxBombCnt);
+}
+
+void UABCharacterStatComponent::DecreaseBombCnt()
+{
+	BombCnt = FMath::Clamp(BombCnt - 1, 0, MaxBombCnt);
+}
+
 void UABCharacterStatComponent::SetHp(float NewHp)
 {
 	CurrentHp = FMath::Clamp<float>(NewHp, 0.0f, MaxHp);
@@ -75,6 +107,8 @@ void UABCharacterStatComponent::GetLifetimeReplicatedProps(TArray<FLifetimePrope
 	DOREPLIFETIME(UABCharacterStatComponent, MaxHp);
 	DOREPLIFETIME_CONDITION(UABCharacterStatComponent, BaseStat, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UABCharacterStatComponent, ModifierStat, COND_OwnerOnly);
+
+	DOREPLIFETIME(UABCharacterStatComponent, BombPower);
 }
 
 void UABCharacterStatComponent::SetNewMaxHp(const FABCharacterStat& InBaseStat, const FABCharacterStat& InModifierStat)
@@ -122,3 +156,8 @@ void UABCharacterStatComponent::ResetStat()
 	SetHp(MaxHp);
 }
 
+
+void UABCharacterStatComponent::OnRep_BombPower()
+{
+
+}

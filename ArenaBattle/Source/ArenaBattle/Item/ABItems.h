@@ -4,3 +4,4 @@
 #include "ABWeaponItemData.h"
 #include "ABScrollItemData.h"
 #include "ABPotionItemData.h"
+#include "ABStatChangeItemData.h"

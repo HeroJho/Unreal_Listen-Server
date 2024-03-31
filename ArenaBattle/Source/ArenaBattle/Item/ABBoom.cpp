@@ -52,10 +52,10 @@ void AABBoom::Tick(float DeltaTime)
 
 }
 
-void AABBoom::SetProperty(TWeakObjectPtr<AActor> _OwnerMadeMe, int _BoomLineDis)
+void AABBoom::SetProperty(TWeakObjectPtr<AActor> InOwnerMadeMe, int InBoomLineDis)
 {
-	OwnerMadeMe = _OwnerMadeMe;
-	BoomLineDis = _BoomLineDis;
+	OwnerMadeMe = InOwnerMadeMe;
+	BoomLineDis = InBoomLineDis;
 }
 
 
@@ -71,6 +71,14 @@ void AABBoom::Boom()
 		const float InRate = 0.1f;
 		GetWorld()->GetTimerManager().SetTimer(LineBoomTimerHandle, this, &AABBoom::BoomLine, InRate, true, 0.f);
 	}
+}
+
+void AABBoom::EndBoom()
+{
+	GetWorld()->GetTimerManager().ClearTimer(LineBoomTimerHandle);
+	OnEndBoomDelegate.Broadcast();
+
+	Destroy();
 }
 
 void AABBoom::NetMulticastRPC_BoomEffect_Implementation(FVector Location, FVector Scale, bool IsMiddle)
@@ -102,8 +110,7 @@ void AABBoom::BoomLine()
 {
 	if (BoomLineCnt > BoomLineDis)
 	{
-		GetWorld()->GetTimerManager().ClearTimer(LineBoomTimerHandle);
-		Destroy();
+		EndBoom();
 		return;
 	}
 

@@ -3,6 +3,7 @@
 
 #include "Manager/ABSkillManager.h"
 #include "Item/ABBoom.h"
+#include "CharacterStat/ABCharacterStatComponent.h"
 
 UABSkillManager::UABSkillManager()
 {
@@ -13,16 +14,17 @@ UABSkillManager::UABSkillManager()
 	}
 }
 
-void UABSkillManager::CreateBomb(AActor* OwnerActor, FTransform SpawnTransform)
+void UABSkillManager::CreateBomb(AActor* OwnerActor, UABCharacterStatComponent* Stat, FTransform SpawnTransform, int Power)
 {
-
 
 	AABBoom* ABBoom = GetWorld()->SpawnActorDeferred<AABBoom>(BombClass, SpawnTransform);
 	if (ABBoom)
 	{
-		ABBoom->SetProperty(OwnerActor, 5);
+		ABBoom->SetProperty(OwnerActor, Power);
+		Stat->IncreaseBombCnt();
+		ABBoom->OnEndBoomDelegate.AddUObject(Stat, &UABCharacterStatComponent::DecreaseBombCnt);
+
 		ABBoom->FinishSpawning(SpawnTransform);
 	}
-
 
 }
