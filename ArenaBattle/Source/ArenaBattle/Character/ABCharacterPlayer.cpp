@@ -90,7 +90,7 @@ void AABCharacterPlayer::BeginPlay()
 	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"));
 	Super::BeginPlay();
 
-	AttackTime = 0.5f;
+	AttackCooldown = 0.5f;
 
 	APlayerController* PlayerController = Cast<APlayerController>(GetController());
 	if (PlayerController)
@@ -279,22 +279,7 @@ void AABCharacterPlayer::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 
 void AABCharacterPlayer::Attack()
 {
-	//ProcessComboCommand();
-
-	if (bCanAttack)
-	{
-		if (!HasAuthority()) // 서버가 아니면
-		{
-			bCanAttack = false;
-			GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_None);
-
-			GetWorldTimerManager().SetTimer(AttackTimerHandle, this, &AABCharacterPlayer::ResetAttack, AttackTime, false);
-
-			PlayAttackAnimation();
-		}
-
-		ServerRPCAttack(GetWorld()->GetGameState()->GetServerWorldTimeSeconds());
-	}
+	ServerRPCAttack(GetWorld()->GetGameState()->GetServerWorldTimeSeconds());
 }
 
 void AABCharacterPlayer::PlayAttackAnimation()
@@ -307,70 +292,9 @@ void AABCharacterPlayer::PlayAttackAnimation()
 // 애니메이션 노티파이 들어오는 곳
 void AABCharacterPlayer::AttackHitCheck()
 {
-	// 내가 조종중인 캐릭터냐
-	// 다른 캐릭터들도 이 로직이 실행될 텐데, 내껏만 검사하면 됨.
-
 	if (HasAuthority())
 	{
-		FHitResult HitResult;
-		const float CheckRange = 150.f;
-		const float CheckRad = 80.f;
-		if (!CheckFront(CheckRange, CheckRad, HitResult))
-		{
-			CreateBomb();
-		}
-		 
-	}
-
-	//if (IsLocallyControlled())
-	//{
-	//	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"));
-
-	//	FHitResult OutHitResult;
-	//	FCollisionQueryParams Params(SCENE_QUERY_STAT(Attack), false, this);
-
-	//	const float AttackRange = Stat->GetTotalStat().AttackRange;
-	//	const float AttackRadius = Stat->GetAttackRadius();
-	//	const float AttackDamage = Stat->GetTotalStat().Attack;
-	//	const FVector Forward = GetActorForwardVector();
-	//	const FVector Start = GetActorLocation() + Forward * GetCapsuleComponent()->GetScaledCapsuleRadius();
-	//	const FVector End = Start + GetActorForwardVector() * AttackRange;
-
-	//	bool HitDetected = GetWorld()->SweepSingleByChannel(OutHitResult, Start, End, FQuat::Identity, CCHANNEL_ABACTION, FCollisionShape::MakeSphere(AttackRadius), Params);
-
-	//	float HitCheckTime = GetWorld()->GetGameState()->GetServerWorldTimeSeconds();
-	//	if (!HasAuthority()) // 클라 로직
-	//	{
-	//		if (HitDetected)
-	//		{
-	//			ServerRPCNotifyHit(OutHitResult, HitCheckTime);
-	//		}
-	//		else
-	//		{
-	//			ServerRPCNotifyMiss(Start, End, Forward, HitCheckTime);
-	//		}
-	//	}
-	//	else // 서버 로직
-	//	{
-	//		FColor DebugColor = HitDetected ? FColor::Green : FColor::Red;
-	//		DrawDebugAttackRange(DebugColor, Start, End, Forward);
-	//		if (HitDetected)
-	//		{
-	//			AttackHitConfirm(OutHitResult.GetActor());
-	//		}
-	//	}
-	//}
-}
-
-void AABCharacterPlayer::AttackHitConfirm(AActor* HitActor)
-{
-	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"));
-
-	if (HasAuthority())
-	{
-		const float AttackDamage = Stat->GetTotalStat().Attack;
-		FDamageEvent DamageEvent;
-		HitActor->TakeDamage(AttackDamage, DamageEvent, GetController(), this);
+		CreateBomb();
 	}
 }
 
@@ -408,111 +332,26 @@ bool AABCharacterPlayer::CheckFront(float FrontRange, float Radius, FHitResult& 
 	return HitDetected;
 }
 
-bool AABCharacterPlayer::ServerRPCAttack_Validate(float AttackStartTime)
-{
-	if (LastAttackStartTime == 0.0f)
-	{
-		return true;
-	}
-
-	return (AttackStartTime - LastAttackStartTime) > (AttackTime - 0.4f);
-}
-
 void AABCharacterPlayer::ServerRPCAttack_Implementation(float AttackStartTime)
 {
-	// 서버 로직
-	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"));
+	// 폭탄 설치 여부 확인
+	if (!CanUseBomb())
+		return;
+
 
 	bCanAttack = false;
 	OnRep_CanAttack();
+	GetWorldTimerManager().SetTimer(AttackTimerHandle, this, &AABCharacterPlayer::ResetAttack, AttackCooldown, false);
 
-	AttackTimeDifference = GetWorld()->GetTimeSeconds() - AttackStartTime;
-	AB_LOG(LogABNetwork, Log, TEXT("LagTime : %f"), AttackTimeDifference);
-	AttackTimeDifference = FMath::Clamp(AttackTimeDifference, 0.0f, AttackTime - 0.01f);
-
-	GetWorldTimerManager().SetTimer(AttackTimerHandle, this, &AABCharacterPlayer::ResetAttack, AttackTime - AttackTimeDifference, false);
-
-	LastAttackStartTime = AttackStartTime;
-	PlayAttackAnimation();
-
-	//MulticastRPCAttack();
-	for (APlayerController* PlayerController : TActorRange<APlayerController>(GetWorld()))
-	{
-		if (PlayerController && GetController() != PlayerController) // 이 캐릭터 컨트롤러가 아니고
-		{
-			if(!PlayerController->IsLocalController()) // 서버 컨트롤러가 아닐 경우
-			{
-				AABCharacterPlayer* OtherPlayer = Cast<AABCharacterPlayer>(PlayerController->GetPawn());
-				if (OtherPlayer)
-				{
-					OtherPlayer->ClientRPCPlayAnimation(this);
-				}
-			}
-		}
-	}
+	// 서버 & 클라 애니메이션 재생
+	MulticastRPCAttack();
 
 }
-
-void AABCharacterPlayer::ClientRPCPlayAnimation_Implementation(AABCharacterPlayer* CharacterToPlay)
-{
-	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"));
-	if (CharacterToPlay)
-	{
-		CharacterToPlay->PlayAttackAnimation();
-	}
-}
-
 
 void AABCharacterPlayer::MulticastRPCAttack_Implementation()
 {
-	if (!IsLocallyControlled())
-	{
-		PlayAttackAnimation();
-	}
-}
+	PlayAttackAnimation();
 
-
-bool AABCharacterPlayer::ServerRPCNotifyHit_Validate(const FHitResult& HitResult, float HitCheckTime)
-{
-	return (HitCheckTime - LastAttackStartTime) > AcceptMinCheckTime;
-}
-
-void AABCharacterPlayer::ServerRPCNotifyHit_Implementation(const FHitResult& HitResult, float HitCheckTime)
-{
-	AActor* HitActor = HitResult.GetActor();
-	if (::IsValid(HitActor))
-	{
-		const FVector HitLocation = HitResult.Location;
-		const FBox HitBox = HitActor->GetComponentsBoundingBox();
-		const FVector ActorBoxCenter = (HitBox.Min + HitBox.Max) * 0.5f;
-		if (FVector::DistSquared(HitLocation, ActorBoxCenter) <= AcceptCheckDistance * AcceptCheckDistance)
-		{
-			AttackHitConfirm(HitActor);
-		}
-		else
-		{
-			AB_LOG(LogABNetwork, Warning, TEXT("%s"), TEXT("HitTest Rejected!"));
-		}
-
-#if ENABLE_DRAW_DEBUG
-		DrawDebugPoint(GetWorld(), ActorBoxCenter, 50.0f, FColor::Cyan, false, 5.0f);
-		DrawDebugPoint(GetWorld(), HitLocation, 50.0f, FColor::Magenta, false, 5.0f);
-#endif
-
-		DrawDebugAttackRange(FColor::Green, HitResult.TraceStart, HitResult.TraceEnd, HitActor->GetActorForwardVector());
-	}
-
-}
-
-bool AABCharacterPlayer::ServerRPCNotifyMiss_Validate(FVector_NetQuantize TraceStart, FVector_NetQuantize TraceEnd, FVector_NetQuantizeNormal TraceDir, float HitCheckTime)
-{
-	return (HitCheckTime - LastAttackStartTime) > AcceptMinCheckTime;
-}
-
-
-void AABCharacterPlayer::ServerRPCNotifyMiss_Implementation(FVector_NetQuantize TraceStart, FVector_NetQuantize TraceEnd, FVector_NetQuantizeNormal TraceDir, float HitCheckTime)
-{
-	DrawDebugAttackRange(FColor::Red, TraceStart, TraceEnd, TraceDir);
 }
 
 void AABCharacterPlayer::OnRep_CanAttack()
@@ -578,7 +417,7 @@ void AABCharacterPlayer::ResetPlayer()
 void AABCharacterPlayer::ResetAttack()
 {
 	bCanAttack = true;
-	GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Walking);
+	OnRep_CanAttack();
 }
 
 float AABCharacterPlayer::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
@@ -614,13 +453,24 @@ void AABCharacterPlayer::OnRep_PlayerState()
 
 
 
+bool AABCharacterPlayer::CanUseBomb()
+{
+	FHitResult HitResult;
+	const float CheckRange = 150.f;
+	const float CheckRad = 80.f;
+	const bool bIsFront = CheckFront(CheckRange, CheckRad, HitResult);
+	const bool bCanBomb = Stat->CheckCanBomb();
+
+	return bCanAttack && !bIsFront && bCanBomb;
+}
+
 void AABCharacterPlayer::CreateBomb()
 {
 
-	if (HasAuthority()) // 서버는 그냥 설치하면 됨
+	if (HasAuthority())
 	{
 		AABGameMode* ABGameMode = GetWorld()->GetAuthGameMode<AABGameMode>();
-		if (ABGameMode && Stat->CheckCanBomb())
+		if (ABGameMode)
 		{
 			/*UE_LOG(LogTemp, Log, TEXT("Create Bomb"));*/
 

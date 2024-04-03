@@ -10,6 +10,7 @@
 #include "EngineUtils.h"
 #include "ABPlayerState.h"
 #include "ArenaBattle/Manager/ABSkillManager.h"
+#include "ArenaBattle/Manager/ABItemManager.h"
 
 
 AABGameMode::AABGameMode()
@@ -118,6 +119,7 @@ void AABGameMode::StartPlay()
 
 	// Init Manager
 	SkillManager = NewObject<UABSkillManager>(this, FName("SkillManager"));
+	ItemManager = NewObject<UABItemManager>(this, FName("ItemManager"));
 
 
 	for (APlayerStart* PlayerStart : TActorRange<APlayerStart>(GetWorld()))
@@ -169,4 +171,9 @@ void AABGameMode::FinishMatch()
 UABSkillManager* AABGameMode::GetSkillManager()
 {
 	return SkillManager;
+}
+
+UABItemManager* AABGameMode::GetItemManager()
+{
+	return ItemManager;
 }

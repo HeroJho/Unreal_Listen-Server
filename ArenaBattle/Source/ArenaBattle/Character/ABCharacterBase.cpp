@@ -345,7 +345,7 @@ void AABCharacterBase::ChangeStat(UABItemData* InItemData)
 				Stat->SetBombPower(BombPower + StatChangeItemData->BombPower);
 			}
 			
-			if (StatChangeItemData->MoveSpeed > 0.1f)
+			if (StatChangeItemData->MoveSpeed > 0.01f)
 			{
 				GetCharacterMovement()->MaxWalkSpeed += StatChangeItemData->MoveSpeed;
 			}

@@ -38,10 +38,13 @@ protected:
 
 public:
 	FORCEINLINE class UABSkillManager* GetSkillManager();
+	FORCEINLINE class UABItemManager* GetItemManager();
 
 	// Manager
 private:
 	UPROPERTY()
 	TObjectPtr<class UABSkillManager> SkillManager;
+	UPROPERTY()
+	TObjectPtr<class UABItemManager> ItemManager;
 
 };

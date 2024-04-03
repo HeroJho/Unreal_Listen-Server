@@ -18,12 +18,14 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-
 	virtual void PostInitializeComponents() override;
+	virtual void PostNetInit() override;
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 
 public:
-
+	void SetProperty(TObjectPtr<class UABItemData> InItemData);
 
 protected:
 	UFUNCTION()
@@ -33,15 +35,15 @@ protected:
 // Components
 protected:
 	UPROPERTY(VisibleAnywhere, Category = Item)
-	TObjectPtr<class USphereComponent> Collision;
-	UPROPERTY(VisibleAnywhere, Category = Item)
 	TObjectPtr<class UStaticMeshComponent> Mesh;
 	UPROPERTY(EditAnywhere, Category = Item)
 	TObjectPtr<class UParticleSystem> Particle;
 
 // ItemData
 protected:
-	UPROPERTY(EditAnywhere, Category = Item)
+	UPROPERTY(ReplicatedUsing = OnRep_ItemData, VisibleAnywhere, Category = Item)
 	TObjectPtr<class UABItemData> ItemData;
+	UFUNCTION()
+	void OnRep_ItemData();
 
 };

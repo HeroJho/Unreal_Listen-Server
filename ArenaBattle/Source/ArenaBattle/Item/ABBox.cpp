@@ -6,6 +6,10 @@
 #include "Components/StaticMeshComponent.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "ABItemDropData.h"
+#include "ABItemData.h"
+#include "Game/ABGameMode.h"
+#include "Manager/ABItemManager.h"
 
 
 // Sets default values
@@ -26,7 +30,15 @@ AABBox::AABBox()
 void AABBox::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	if (DropInfo)
+	{
+		for (auto Num : DropInfo->ItemPercentageInfos)
+		{
+			DropTotalPercentage += Num;
+		}
+	}
+
 }
 
 // Called every frame
@@ -45,8 +57,57 @@ float AABBox::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AC
 	return ActualDamage;
 }
 
+void AABBox::DropItem()
+{
+	// 서버 로직
+	if (!HasAuthority())
+		return;
+
+	if (DropInfo == nullptr)
+		return;
+
+	// 확률 뽑기
+	const float DropPercen = FMath::RandRange(0.f, DropTotalPercentage);
+	float DropPercenAcc = 0.f;
+	TObjectPtr<UABItemData> DropItemInfo = nullptr;
+	for (int32 i = 0; i < DropInfo->ItemPercentageInfos.Num(); ++i)
+	{
+		float CurNum = DropInfo->ItemPercentageInfos[i];
+
+		DropPercenAcc += CurNum;
+		if (DropPercen <= DropPercenAcc)
+		{
+			DropItemInfo = DropInfo->ItemInfos[i];
+			break;
+		} 
+
+	}
+
+	if (DropItemInfo == nullptr)
+		return;
+
+	// 아이템 생성
+	AABGameMode* ABGameMode = GetWorld()->GetAuthGameMode<AABGameMode>();
+	if (ABGameMode)
+	{
+		FTransform SpawnTransform = GetActorTransform();
+
+		if (ABGameMode->GetItemManager())
+		{
+			ABGameMode->GetItemManager()->CreateItem(DropItemInfo, SpawnTransform);
+		}
+
+	}
+
+}
+
 void AABBox::BreakBox()
 {
+	Mesh->SetHiddenInGame(true);
+	SetActorEnableCollision(false);
+
+	DropItem();
+
 	FTransform EffectTransform;
 	EffectTransform.SetScale3D({ 2.f, 2.f, 2.f });
 	EffectTransform.SetLocation(GetActorLocation());

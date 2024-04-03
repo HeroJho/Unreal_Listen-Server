@@ -77,7 +77,9 @@ protected:
 	int BombPower;
 	int MaxBombPower;
 
+	UPROPERTY(ReplicatedUsing = OnRep_BombPower, EditAnywhere, Category = Stat)
 	int MaxBombCnt;
+	UPROPERTY(ReplicatedUsing = OnRep_BombPower, VisibleAnywhere, Category = Stat)
 	int BombCnt;
 
 protected:

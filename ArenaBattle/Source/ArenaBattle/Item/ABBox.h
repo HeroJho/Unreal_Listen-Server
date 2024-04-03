@@ -26,6 +26,7 @@ public:
 protected:
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 
+	void DropItem();
 	void BreakBox();
 
 // Components
@@ -37,4 +38,8 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = Box)
 	TObjectPtr<class UParticleSystem> BreakParticle;
+
+	UPROPERTY(EditAnywhere, Category = Box)
+	TObjectPtr<class UABItemDropData> DropInfo;
+	float DropTotalPercentage;
 };

@@ -2,6 +2,7 @@
 
 
 #include "Item/ABItem.h"
+#include "Net/UnrealNetwork.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Interface/ABCharacterItemInterface.h"
@@ -15,13 +16,9 @@ AABItem::AABItem()
 	bReplicates = true;
 	
 
-	Collision = CreateDefaultSubobject<USphereComponent>(TEXT("Collision"));
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 
-	RootComponent = Collision;
-	Mesh->SetupAttachment(RootComponent);
-
-
+	RootComponent = Mesh;
 
 }
 
@@ -30,12 +27,12 @@ void AABItem::BeginPlay()
 {
 	Super::BeginPlay();
 
-	Collision->SetCollisionProfileName("NoCollision");
-	// Collision->SetSimulatePhysics(true);
 
-	Mesh->SetStaticMesh(ItemData->Mesh);
-	Mesh->SetCollisionProfileName("ABItem");
-	Mesh->SetSimulatePhysics(true);
+	if (HasAuthority())
+	{
+		Mesh->SetCollisionProfileName("ABItem");
+		Mesh->SetSimulatePhysics(true);
+	}
 
 }
 
@@ -46,21 +43,45 @@ void AABItem::PostInitializeComponents()
 	Mesh->OnComponentBeginOverlap.AddDynamic(this, &AABItem::OnOverlapBegin);
 }
 
+void AABItem::PostNetInit()
+{
+	Super::PostNetInit();
+
+	OnRep_ItemData();
+
+}
+
+void AABItem::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AABItem, ItemData);
+}
+
+void AABItem::SetProperty(TObjectPtr<UABItemData> InItemData)
+{
+	ItemData = InItemData;
+	OnRep_ItemData();
+}
+
 void AABItem::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
 {	
-	if (nullptr == ItemData)
+	if (HasAuthority())
 	{
+		IABCharacterItemInterface* OverlappingPawn = Cast<IABCharacterItemInterface>(OtherActor);
+		if (OverlappingPawn)
+		{
+			OverlappingPawn->TakeItem(ItemData);
+		}
+
 		Destroy();
-		return;
 	}
 
-	IABCharacterItemInterface* OverlappingPawn = Cast<IABCharacterItemInterface>(OtherActor);
-	if (OverlappingPawn)
-	{
-		OverlappingPawn->TakeItem(ItemData);
-	}
+}
 
-	Destroy();
+void AABItem::OnRep_ItemData()
+{
+	Mesh->SetStaticMesh(ItemData->Mesh);
 }
 
 
