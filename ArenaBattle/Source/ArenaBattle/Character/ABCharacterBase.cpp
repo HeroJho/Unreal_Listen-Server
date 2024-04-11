@@ -356,6 +356,10 @@ void AABCharacterBase::ChangeStat(UABItemData* InItemData)
 				Stat->SetMaxBombCnt(MaxBombCnt + StatChangeItemData->BombCnt);
 			}
 
+			if (StatChangeItemData->bCanPush == true)
+			{
+				GetCharacterMovement()->bEnablePhysicsInteraction = true;
+			}
 
 		}
 	}

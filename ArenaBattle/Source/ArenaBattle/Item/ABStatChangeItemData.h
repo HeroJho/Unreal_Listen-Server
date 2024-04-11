@@ -24,6 +24,7 @@ public:
 	float BombPower;
 	UPROPERTY(EditAnywhere, Category = Stat)
 	float BombCnt;
-
+	UPROPERTY(EditAnywhere, Category = Stat)
+	uint8 bCanPush : 1;
 
 };
