@@ -10,9 +10,12 @@
 #include "Physics/ABCollision.h"
 #include "Engine/DamageEvents.h"
 #include "CharacterStat/ABCharacterStatComponent.h"
+#include "CharacterStat/ABCharacterCooldownItemComponent.h"
 #include "UI/ABWidgetComponent.h"
 #include "UI/ABHpBarWidget.h"
 #include "Item/ABItems.h"
+#include "ArenaBattle.h"
+
 
 DEFINE_LOG_CATEGORY(LogABCharacter);
 
@@ -110,6 +113,10 @@ AABCharacterBase::AABCharacterBase(const FObjectInitializer& ObjectInitializer)
 	// Weapon Component
 	Weapon = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Weapon"));
 	Weapon->SetupAttachment(GetMesh(), TEXT("hand_rSocket"));
+
+	// Cooldown Component
+	CooldownItemComponent = CreateDefaultSubobject<UABCharacterCooldownItemComponent>(TEXT("CooldownItemComponent"));
+
 }
 
 void AABCharacterBase::PostInitializeComponents()
@@ -118,6 +125,8 @@ void AABCharacterBase::PostInitializeComponents()
 
 	Stat->OnHpZero.AddUObject(this, &AABCharacterBase::SetDead);
 	Stat->OnStatChanged.AddUObject(this, &AABCharacterBase::ApplyStat);
+
+	CooldownItemComponent->SetUseableItemDeletage(EUseableItemID::Jump, FOnUseItemDelegate::CreateUObject(this, &AABCharacterBase::ClientRPCJump));
 }
 
 void AABCharacterBase::SetCharacterControlData(const UABCharacterControlData* CharacterControlData)
@@ -302,22 +311,23 @@ void AABCharacterBase::DrinkPotion(UABItemData* InItemData)
 void AABCharacterBase::EquipWeapon(UABItemData* InItemData)
 {
 	UABWeaponItemData* WeaponItemData = Cast<UABWeaponItemData>(InItemData);
-	if (WeaponItemData)
-	{
-		if (WeaponItemData->WeaponMesh.IsPending())
-		{
-			WeaponItemData->WeaponMesh.LoadSynchronous();
-		}
-		Weapon->SetSkeletalMesh(WeaponItemData->WeaponMesh.Get());		
-	}
+	//if (WeaponItemData)
+	//{
+	//	if (WeaponItemData->WeaponMesh.IsPending())
+	//	{
+	//		WeaponItemData->WeaponMesh.LoadSynchronous();
+	//	}
+	//	Weapon->SetSkeletalMesh(WeaponItemData->WeaponMesh.Get());		
+	//}
 
 	if (HasAuthority())
 	{
 		if (WeaponItemData)
 		{
-			Stat->SetModifierStat(WeaponItemData->ModifierStat);
+			CooldownItemComponent->SetItemData(WeaponItemData);
 		}
 	}
+
 }
 
 void AABCharacterBase::ReadScroll(UABItemData* InItemData)
@@ -397,4 +407,14 @@ void AABCharacterBase::MeshLoadCompleted()
 	}
 
 	MeshHandle->ReleaseHandle();
+}
+
+void AABCharacterBase::ServerRPCUseItem_Implementation()
+{
+	CooldownItemComponent->UseItem();
+}
+
+void AABCharacterBase::ClientRPCJump_Implementation()
+{
+	Jump();
 }

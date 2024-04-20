@@ -88,6 +88,11 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Stat, Meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<class UABCharacterStatComponent> Stat;
 
+public:
+	int32 GetLevel();
+	void SetLevel(int32 InNewLevel);
+	void ApplyStat(const FABCharacterStat& BaseStat, const FABCharacterStat& ModifierStat);
+
 // UI Widget Section
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Widget, Meta = (AllowPrivateAccess = "true"))
@@ -109,11 +114,19 @@ protected:
 	virtual void ReadScroll(class UABItemData* InItemData);
 	virtual void ChangeStat(class UABItemData* InItemData);
 
-// Stat Section
+// CooldownSkill Section
+protected:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Stat, Meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<class UABCharacterCooldownItemComponent> CooldownItemComponent;
+
 public:
-	int32 GetLevel();
-	void SetLevel(int32 InNewLevel);
-	void ApplyStat(const FABCharacterStat& BaseStat, const FABCharacterStat& ModifierStat);
+	UFUNCTION(Server, Reliable)
+	void ServerRPCUseItem();
+
+	UFUNCTION(Client, Reliable)
+	void ClientRPCJump();
+
+
 
 public:
 	void MeshLoadCompleted();

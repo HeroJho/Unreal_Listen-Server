@@ -4,17 +4,24 @@
 
 #include "CoreMinimal.h"
 #include "Item/ABItemData.h"
-#include "GameData/ABCharacterStat.h"
 #include "ABWeaponItemData.generated.h"
 
-/**
- * 
- */
+
+UENUM()
+enum class EUseableItemID : uint32
+{
+	Jump = 1,
+	Map,
+	Hide,
+	END
+};
+
+
 UCLASS()
 class ARENABATTLE_API UABWeaponItemData : public UABItemData
 {
 	GENERATED_BODY()
-	
+
 public:
 	UABWeaponItemData();
 
@@ -22,11 +29,16 @@ public:
 	{
 		return FPrimaryAssetId("ABItemData", GetFName());
 	}
-	
+
 public:
 	UPROPERTY(EditAnywhere, Category = Weapon)
-	TSoftObjectPtr<USkeletalMesh> WeaponMesh;
+	EUseableItemID ItemID;
+	UPROPERTY(EditAnywhere, Category = Weapon)
+	TObjectPtr<UStaticMesh> ItemMesh;
+	UPROPERTY(EditAnywhere, Category = Weapon)
+	FName MeshBoneName;
 
-	UPROPERTY(EditAnywhere, Category = Stat)
-	FABCharacterStat ModifierStat;
+	UPROPERTY(EditAnywhere, Category = Weapon)
+	float Cooldown;
+
 };
