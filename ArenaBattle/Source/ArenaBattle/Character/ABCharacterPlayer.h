@@ -75,7 +75,7 @@ protected:
 
 	ECharacterControlType CurrentCharacterControlType;
 
-	// Attack
+// Attack
 protected:	
 	void Attack();
 	virtual void AttackHitCheck() override;

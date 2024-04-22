@@ -3,6 +3,7 @@
 
 #include "Item/ABItem.h"
 #include "Net/UnrealNetwork.h"
+#include "Kismet/GameplayStatics.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Interface/ABCharacterItemInterface.h"
@@ -64,19 +65,32 @@ void AABItem::SetProperty(TObjectPtr<UABItemData> InItemData)
 	OnRep_ItemData();
 }
 
+void AABItem::DestroyItem()
+{
+	Destroy();
+}
+
 void AABItem::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
 {	
-	if (HasAuthority())
+	IABCharacterItemInterface* OverlappingPawn = Cast<IABCharacterItemInterface>(OtherActor);
+	if (OverlappingPawn)
 	{
-		IABCharacterItemInterface* OverlappingPawn = Cast<IABCharacterItemInterface>(OtherActor);
-		if (OverlappingPawn)
-		{
-			OverlappingPawn->TakeItem(ItemData);
-		}
-
-		Destroy();
+		OverlappingPawn->TakeItem(ItemData);
 	}
 
+
+	FTransform EffectTransform;
+	// EffectTransform.SetScale3D(Vector);
+	EffectTransform.SetLocation(GetActorLocation());
+
+	UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), Particle, EffectTransform);
+
+	FTimerHandle EffectHandle;
+	GetWorldTimerManager().SetTimer(EffectHandle, this, &AABItem::DestroyItem, 2.f, false);
+
+	Mesh->SetHiddenInGame(true);
+	SetActorEnableCollision(false);
+	
 }
 
 void AABItem::OnRep_ItemData()

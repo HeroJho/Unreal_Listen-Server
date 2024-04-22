@@ -38,16 +38,34 @@ public:
 
 public:
 	void SetItemData(class UABWeaponItemData* InItemData);
+	
 	void SetUseableItemDeletage(EUseableItemID ID, FOnUseItemDelegate Deletage);
 
-	void UseItem();
 
+	bool CheckUseableItem();
+	void UseItem();
+	void EndCooldown();
+
+public:
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	UFUNCTION()
+	void OnRep_CanUse();
+	
+	UFUNCTION(Server, Reliable)
+	void ServerRPCUseItem();
+
+	 
 protected:
 	EUseableItemID ItemID;
 	float Cooldown;
-	float CooldownLastTime;
-
+	
 	UPROPERTY()
 	TArray<FUseableItemDelegateWrapper> UseableItemActions;
+
+	UPROPERTY(ReplicatedUsing = OnRep_CanUse)
+	uint8 bCanUse : 1;
+
+	FTimerHandle CooldownTimerHandle;
 
 };

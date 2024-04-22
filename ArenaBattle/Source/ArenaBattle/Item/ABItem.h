@@ -27,6 +27,8 @@ protected:
 public:
 	void SetProperty(TObjectPtr<class UABItemData> InItemData);
 
+	void DestroyItem();
+
 protected:
 	UFUNCTION()
 	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult);

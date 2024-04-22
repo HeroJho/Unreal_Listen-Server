@@ -131,7 +131,6 @@ void AABGameMode::StartPlay()
 void AABGameMode::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
-
 	// GetWorldTimerManager().SetTimer(GameTimerHandle, this, &AABGameMode::DefaultGameTimer, GetWorldSettings()->GetEffectiveTimeDilation(), true);
 }
 

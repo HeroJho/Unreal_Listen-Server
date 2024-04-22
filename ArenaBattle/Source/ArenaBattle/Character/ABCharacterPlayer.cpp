@@ -2,6 +2,7 @@
 
 
 #include "Character/ABCharacterPlayer.h"
+#include "Net/UnrealNetwork.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "InputMappingContext.h"
@@ -16,7 +17,6 @@
 #include "Physics/ABCollision.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Engine/DamageEvents.h"
-#include "Net/UnrealNetwork.h"
 #include "GameFramework/GameStateBase.h"
 #include "EngineUtils.h"
 #include "ABCharacterMovementComponent.h"
@@ -39,47 +39,50 @@ AABCharacterPlayer::AABCharacterPlayer(const FObjectInitializer& ObjectInitializ
 	FollowCamera->bUsePawnControlRotation = false;
 
 	// Input
-	static ConstructorHelpers::FObjectFinder<UInputAction> InputActionJumpRef(TEXT("/Script/EnhancedInput.InputAction'/Game/ArenaBattle/Input/Actions/IA_Jump.IA_Jump'"));
-	if (nullptr != InputActionJumpRef.Object)
 	{
-		JumpAction = InputActionJumpRef.Object;
+		static ConstructorHelpers::FObjectFinder<UInputAction> InputActionJumpRef(TEXT("/Script/EnhancedInput.InputAction'/Game/ArenaBattle/Input/Actions/IA_Jump.IA_Jump'"));
+		if (nullptr != InputActionJumpRef.Object)
+		{
+			JumpAction = InputActionJumpRef.Object;
+		}
+
+		static ConstructorHelpers::FObjectFinder<UInputAction> InputChangeActionControlRef(TEXT("/Script/EnhancedInput.InputAction'/Game/ArenaBattle/Input/Actions/IA_ChangeControl.IA_ChangeControl'"));
+		if (nullptr != InputChangeActionControlRef.Object)
+		{
+			ChangeControlAction = InputChangeActionControlRef.Object;
+		}
+
+		static ConstructorHelpers::FObjectFinder<UInputAction> InputActionShoulderMoveRef(TEXT("/Script/EnhancedInput.InputAction'/Game/ArenaBattle/Input/Actions/IA_ShoulderMove.IA_ShoulderMove'"));
+		if (nullptr != InputActionShoulderMoveRef.Object)
+		{
+			ShoulderMoveAction = InputActionShoulderMoveRef.Object;
+		}
+
+		static ConstructorHelpers::FObjectFinder<UInputAction> InputActionShoulderLookRef(TEXT("/Script/EnhancedInput.InputAction'/Game/ArenaBattle/Input/Actions/IA_ShoulderLook.IA_ShoulderLook'"));
+		if (nullptr != InputActionShoulderLookRef.Object)
+		{
+			ShoulderLookAction = InputActionShoulderLookRef.Object;
+		}
+
+		static ConstructorHelpers::FObjectFinder<UInputAction> InputActionQuaterMoveRef(TEXT("/Script/EnhancedInput.InputAction'/Game/ArenaBattle/Input/Actions/IA_QuaterMove.IA_QuaterMove'"));
+		if (nullptr != InputActionQuaterMoveRef.Object)
+		{
+			QuaterMoveAction = InputActionQuaterMoveRef.Object;
+		}
+
+		static ConstructorHelpers::FObjectFinder<UInputAction> InputActionAttackRef(TEXT("/Script/EnhancedInput.InputAction'/Game/ArenaBattle/Input/Actions/IA_Attack.IA_Attack'"));
+		if (nullptr != InputActionAttackRef.Object)
+		{
+			AttackAction = InputActionAttackRef.Object;
+		}
+
+		static ConstructorHelpers::FObjectFinder<UInputAction> InputActionTeleportRef(TEXT("/Script/EnhancedInput.InputAction'/Game/ArenaBattle/Input/Actions/IA_Teleport.IA_Teleport'"));
+		if (nullptr != InputActionTeleportRef.Object)
+		{
+			TeleportAction = InputActionTeleportRef.Object;
+		}
 	}
 
-	static ConstructorHelpers::FObjectFinder<UInputAction> InputChangeActionControlRef(TEXT("/Script/EnhancedInput.InputAction'/Game/ArenaBattle/Input/Actions/IA_ChangeControl.IA_ChangeControl'"));
-	if (nullptr != InputChangeActionControlRef.Object)
-	{
-		ChangeControlAction = InputChangeActionControlRef.Object;
-	}
-
-	static ConstructorHelpers::FObjectFinder<UInputAction> InputActionShoulderMoveRef(TEXT("/Script/EnhancedInput.InputAction'/Game/ArenaBattle/Input/Actions/IA_ShoulderMove.IA_ShoulderMove'"));
-	if (nullptr != InputActionShoulderMoveRef.Object)
-	{
-		ShoulderMoveAction = InputActionShoulderMoveRef.Object;
-	}
-
-	static ConstructorHelpers::FObjectFinder<UInputAction> InputActionShoulderLookRef(TEXT("/Script/EnhancedInput.InputAction'/Game/ArenaBattle/Input/Actions/IA_ShoulderLook.IA_ShoulderLook'"));
-	if (nullptr != InputActionShoulderLookRef.Object)
-	{
-		ShoulderLookAction = InputActionShoulderLookRef.Object;
-	}
-
-	static ConstructorHelpers::FObjectFinder<UInputAction> InputActionQuaterMoveRef(TEXT("/Script/EnhancedInput.InputAction'/Game/ArenaBattle/Input/Actions/IA_QuaterMove.IA_QuaterMove'"));
-	if (nullptr != InputActionQuaterMoveRef.Object)
-	{
-		QuaterMoveAction = InputActionQuaterMoveRef.Object;
-	}
-
-	static ConstructorHelpers::FObjectFinder<UInputAction> InputActionAttackRef(TEXT("/Script/EnhancedInput.InputAction'/Game/ArenaBattle/Input/Actions/IA_Attack.IA_Attack'"));
-	if (nullptr != InputActionAttackRef.Object)
-	{
-		AttackAction = InputActionAttackRef.Object;
-	}
-
-	static ConstructorHelpers::FObjectFinder<UInputAction> InputActionTeleportRef(TEXT("/Script/EnhancedInput.InputAction'/Game/ArenaBattle/Input/Actions/IA_Teleport.IA_Teleport'"));
-	if (nullptr != InputActionTeleportRef.Object)
-	{
-		TeleportAction = InputActionTeleportRef.Object;
-	}
 
 	CurrentCharacterControlType = ECharacterControlType::Quater;
 	bCanAttack = true;
@@ -155,7 +158,7 @@ void AABCharacterPlayer::SetupPlayerInputComponent(class UInputComponent* Player
 
 	UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(PlayerInputComponent);
 
-	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Triggered, this, &AABCharacterBase::ServerRPCUseItem);
+	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Triggered, this, &AABCharacterBase::UseItem);
 	// EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 	EnhancedInputComponent->BindAction(ChangeControlAction, ETriggerEvent::Triggered, this, &AABCharacterPlayer::ChangeCharacterControl);
 	EnhancedInputComponent->BindAction(ShoulderMoveAction, ETriggerEvent::Triggered, this, &AABCharacterPlayer::ShoulderMove);

@@ -2,17 +2,22 @@
 
 
 #include "CharacterStat/ABCharacterCooldownItemComponent.h"
+#include "ArenaBattle.h"
+#include "Net/UnrealNetwork.h"
+#include "Character/ABCharacterBase.h"
 
 // Sets default values for this component's properties
 UABCharacterCooldownItemComponent::UABCharacterCooldownItemComponent()
 {
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
-	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bCanEverTick = false;
 
-	CooldownLastTime = 0.f;
+	bCanUse = true;
 	ItemID = EUseableItemID::END;
 	UseableItemActions.SetNum((uint32)EUseableItemID::END);
+
+	SetIsReplicated(true);
 }
 
 
@@ -36,9 +41,10 @@ void UABCharacterCooldownItemComponent::TickComponent(float DeltaTime, ELevelTic
 
 void UABCharacterCooldownItemComponent::SetItemData(UABWeaponItemData* InItemData)
 {
-	CooldownLastTime = 0.f;
+	EndCooldown();
 	Cooldown = InItemData->Cooldown;
 	ItemID = InItemData->ItemID;
+
 }
 
 void UABCharacterCooldownItemComponent::SetUseableItemDeletage(EUseableItemID ID, FOnUseItemDelegate Deletage)
@@ -46,17 +52,57 @@ void UABCharacterCooldownItemComponent::SetUseableItemDeletage(EUseableItemID ID
 	UseableItemActions[(uint32)ID] = FUseableItemDelegateWrapper(Deletage);
 }
 
+bool UABCharacterCooldownItemComponent::CheckUseableItem()
+{
+	return (ItemID != EUseableItemID::END) && bCanUse;
+}
+
 void UABCharacterCooldownItemComponent::UseItem()
 {
-	if (ItemID == EUseableItemID::END)
-		return;
-
-	const double DisTime = GetWorld()->GetTimeSeconds() - CooldownLastTime;
-	if (DisTime > Cooldown)
+	if (CheckUseableItem())
 	{
-		CooldownLastTime = GetWorld()->GetTimeSeconds();
-		UseableItemActions[(uint8)ItemID].ItemDelegate.ExecuteIfBound();
+		bCanUse = false;
+
+		// 서버에서만 실행
+		if (GetOwner()->HasAuthority())
+		{
+			GetWorld()->GetTimerManager().SetTimer(CooldownTimerHandle, this, &UABCharacterCooldownItemComponent::EndCooldown, Cooldown, false);
+			UseableItemActions[(uint8)ItemID].ItemDelegate.ExecuteIfBound();
+		}
+		else
+		{
+			ServerRPCUseItem();
+		}
+		
 	}
 
 }
+
+void UABCharacterCooldownItemComponent::EndCooldown()
+{
+	bCanUse = true;
+}
+
+void UABCharacterCooldownItemComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(UABCharacterCooldownItemComponent, bCanUse);
+}
+
+void UABCharacterCooldownItemComponent::OnRep_CanUse()
+{
+	// UI 갱신
+}
+
+void UABCharacterCooldownItemComponent::ServerRPCUseItem_Implementation()
+{
+	UseItem();
+}
+
+
+
+
+
+
 

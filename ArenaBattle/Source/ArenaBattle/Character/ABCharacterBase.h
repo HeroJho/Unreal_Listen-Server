@@ -120,8 +120,7 @@ protected:
 	TObjectPtr<class UABCharacterCooldownItemComponent> CooldownItemComponent;
 
 public:
-	UFUNCTION(Server, Reliable)
-	void ServerRPCUseItem();
+	void UseItem();
 
 	UFUNCTION(Client, Reliable)
 	void ClientRPCJump();

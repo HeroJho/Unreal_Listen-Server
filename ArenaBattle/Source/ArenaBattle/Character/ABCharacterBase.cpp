@@ -46,47 +46,51 @@ AABCharacterBase::AABCharacterBase(const FObjectInitializer& ObjectInitializer)
 	GetMesh()->SetAnimationMode(EAnimationMode::AnimationBlueprint);
 	GetMesh()->SetCollisionProfileName(TEXT("NoCollision"));
 
-	static ConstructorHelpers::FObjectFinder<USkeletalMesh> CharacterMeshRef(TEXT("/Script/Engine.SkeletalMesh'/Game/InfinityBladeWarriors/Character/CompleteCharacters/SK_CharM_Cardboard.SK_CharM_Cardboard'"));
-	if (CharacterMeshRef.Object)
+	// Set Asset
 	{
-		GetMesh()->SetSkeletalMesh(CharacterMeshRef.Object);
+		static ConstructorHelpers::FObjectFinder<USkeletalMesh> CharacterMeshRef(TEXT("/Script/Engine.SkeletalMesh'/Game/InfinityBladeWarriors/Character/CompleteCharacters/SK_CharM_Cardboard.SK_CharM_Cardboard'"));
+		if (CharacterMeshRef.Object)
+		{
+			GetMesh()->SetSkeletalMesh(CharacterMeshRef.Object);
+		}
+
+		static ConstructorHelpers::FClassFinder<UAnimInstance> AnimInstanceClassRef(TEXT("/Game/ArenaBattle/Animation/ABP_ABCharacter.ABP_ABCharacter_C"));
+		if (AnimInstanceClassRef.Class)
+		{
+			GetMesh()->SetAnimInstanceClass(AnimInstanceClassRef.Class);
+		}
+
+		static ConstructorHelpers::FObjectFinder<UABCharacterControlData> ShoulderDataRef(TEXT("/Script/ArenaBattle.ABCharacterControlData'/Game/ArenaBattle/CharacterControl/ABC_Shoulder.ABC_Shoulder'"));
+		if (ShoulderDataRef.Object)
+		{
+			CharacterControlManager.Add(ECharacterControlType::Shoulder, ShoulderDataRef.Object);
+		}
+
+		static ConstructorHelpers::FObjectFinder<UABCharacterControlData> QuaterDataRef(TEXT("/Script/ArenaBattle.ABCharacterControlData'/Game/ArenaBattle/CharacterControl/ABC_Quater.ABC_Quater'"));
+		if (QuaterDataRef.Object)
+		{
+			CharacterControlManager.Add(ECharacterControlType::Quater, QuaterDataRef.Object);
+		}
+
+		static ConstructorHelpers::FObjectFinder<UAnimMontage> ComboActionMontageRef(TEXT("/Script/Engine.AnimMontage'/Game/ArenaBattle/Animation/AM_ComboAttack.AM_ComboAttack'"));
+		if (ComboActionMontageRef.Object)
+		{
+			ComboActionMontage = ComboActionMontageRef.Object;
+		}
+
+		static ConstructorHelpers::FObjectFinder<UABComboActionData> ComboActionDataRef(TEXT("/Script/ArenaBattle.ABComboActionData'/Game/ArenaBattle/CharacterAction/ABA_ComboAttack.ABA_ComboAttack'"));
+		if (ComboActionDataRef.Object)
+		{
+			ComboActionData = ComboActionDataRef.Object;
+		}
+
+		static ConstructorHelpers::FObjectFinder<UAnimMontage> DeadMontageRef(TEXT("/Script/Engine.AnimMontage'/Game/ArenaBattle/Animation/AM_Dead.AM_Dead'"));
+		if (DeadMontageRef.Object)
+		{
+			DeadMontage = DeadMontageRef.Object;
+		}
 	}
 
-	static ConstructorHelpers::FClassFinder<UAnimInstance> AnimInstanceClassRef(TEXT("/Game/ArenaBattle/Animation/ABP_ABCharacter.ABP_ABCharacter_C"));
-	if (AnimInstanceClassRef.Class)
-	{
-		GetMesh()->SetAnimInstanceClass(AnimInstanceClassRef.Class);
-	}
-
-	static ConstructorHelpers::FObjectFinder<UABCharacterControlData> ShoulderDataRef(TEXT("/Script/ArenaBattle.ABCharacterControlData'/Game/ArenaBattle/CharacterControl/ABC_Shoulder.ABC_Shoulder'"));
-	if (ShoulderDataRef.Object)
-	{
-		CharacterControlManager.Add(ECharacterControlType::Shoulder, ShoulderDataRef.Object);
-	}
-
-	static ConstructorHelpers::FObjectFinder<UABCharacterControlData> QuaterDataRef(TEXT("/Script/ArenaBattle.ABCharacterControlData'/Game/ArenaBattle/CharacterControl/ABC_Quater.ABC_Quater'"));
-	if (QuaterDataRef.Object)
-	{
-		CharacterControlManager.Add(ECharacterControlType::Quater, QuaterDataRef.Object);
-	}
-
-	static ConstructorHelpers::FObjectFinder<UAnimMontage> ComboActionMontageRef(TEXT("/Script/Engine.AnimMontage'/Game/ArenaBattle/Animation/AM_ComboAttack.AM_ComboAttack'"));
-	if (ComboActionMontageRef.Object)
-	{
-		ComboActionMontage = ComboActionMontageRef.Object;
-	}
-
-	static ConstructorHelpers::FObjectFinder<UABComboActionData> ComboActionDataRef(TEXT("/Script/ArenaBattle.ABComboActionData'/Game/ArenaBattle/CharacterAction/ABA_ComboAttack.ABA_ComboAttack'"));
-	if (ComboActionDataRef.Object)
-	{
-		ComboActionData = ComboActionDataRef.Object;
-	}
-
-	static ConstructorHelpers::FObjectFinder<UAnimMontage> DeadMontageRef(TEXT("/Script/Engine.AnimMontage'/Game/ArenaBattle/Animation/AM_Dead.AM_Dead'"));
-	if (DeadMontageRef.Object)
-	{
-		DeadMontage = DeadMontageRef.Object;
-	}
 
 	// Stat Component 
 	Stat = CreateDefaultSubobject<UABCharacterStatComponent>(TEXT("Stat"));
@@ -203,6 +207,8 @@ void AABCharacterBase::SetComboCheckTimer()
 	{
 		GetWorld()->GetTimerManager().SetTimer(ComboTimerHandle, this, &AABCharacterBase::ComboCheck, ComboEffectiveTime, false);
 	}
+
+	
 }
 
 void AABCharacterBase::ComboCheck()
@@ -320,12 +326,15 @@ void AABCharacterBase::EquipWeapon(UABItemData* InItemData)
 	//	Weapon->SetSkeletalMesh(WeaponItemData->WeaponMesh.Get());		
 	//}
 
+	if (WeaponItemData)
+	{
+		AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("EquipWeapon"));
+		CooldownItemComponent->SetItemData(WeaponItemData);
+	}
+
 	if (HasAuthority())
 	{
-		if (WeaponItemData)
-		{
-			CooldownItemComponent->SetItemData(WeaponItemData);
-		}
+		
 	}
 
 }
@@ -409,10 +418,15 @@ void AABCharacterBase::MeshLoadCompleted()
 	MeshHandle->ReleaseHandle();
 }
 
-void AABCharacterBase::ServerRPCUseItem_Implementation()
+
+
+void AABCharacterBase::UseItem()
 {
+	// 클라 체크
 	CooldownItemComponent->UseItem();
 }
+
+
 
 void AABCharacterBase::ClientRPCJump_Implementation()
 {
